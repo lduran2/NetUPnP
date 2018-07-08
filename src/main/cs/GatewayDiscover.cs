@@ -1,6 +1,7 @@
-using System.Collections.Generic; /* IDictionary, ICollection */
-using System.Net; /* IPAddress */
 using System; /* String */
+using System.Net; /* IPAddress */
+using System.Net.NetworkInformation; /* NetworkInterface */
+using System.Collections.Generic; /* IDictionary, ICollection */
 using System.Threading; /* ThreadAbortException */
 // using Windows.Networking.Sockets; /* DatagramSocket */
 
@@ -104,7 +105,35 @@ namespace org {
 					return devices;
 				}
 
-				private IList<IPAddress> getLocalIpAddresses(bool getIp4, bool getIp6, bool shouldIp4BeforeIp6) {
+				private LinkedList<IPAddress> getLocalIpAddresses(bool getIp4, bool getIp6, bool shouldIp4BeforeIp6) {
+					LinkedList<IPAddress> ipAddresses = new LinkedList<IPAddress>();
+					int iLastIp4Address = 0;
+					bool areNoIpAddresses = false;
+
+					/* get all network interfaces */
+					NetworkInterface[] networkInterfaces = null;
+					try {
+						networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+					}
+					catch (NetworkInformationException niex) {
+						areNoIpAddresses = true;
+					}
+
+					areNoIpAddresses |= (networkInterfaces == null);
+					if (areNoIpAddresses) {
+						return ipAddresses;
+					}
+
+					/* For every suitable network interface,
+					   get all IP addresses */
+					foreach (NetworkInterface card in networkInterfaces) {
+						try {
+							
+						}
+						catch (Exception ex) {
+							
+						}
+					}
 					return null;
 				}
 
@@ -134,10 +163,6 @@ namespace org {
 					}
 				}
 			} /* end class GatewayDiscover */
-
-			public class GatewayDevice {
-				// GateDisover
-			}
 		} /* end namespace org.dark_archives.NetUPnP */
 	} /* end namespace org.dark_archives */
 } /* end namespace org */
