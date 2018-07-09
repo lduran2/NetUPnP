@@ -61,6 +61,8 @@ namespace org {
 					ICollection<IPAddress> ips;
 					IEnumerator<string> iType;
 					string searchMessage;
+					ICollection<Thread> threads;
+					Thread newThread;
 
 					ips = getLocalIpAddresses(true, false, false);
 
@@ -78,22 +80,17 @@ namespace org {
 						);
 
 						/* perform search requests for multiple network adapters concurrently */
-						ICollection<SendDiscoveryThread> threads = new LinkedList<SendDiscoveryThread>();
+						threads = new LinkedList<Thread>();
 						foreach (IPAddress ip in ips) {
-							/*
-								Thread newThread = new Thread((/ * params here * /) => {
-									// Some code here which will run in another thread
-								});
-								threads.Add(newThread);
-								newThread.Start();
-							*/
-							SendDiscoveryThread thread = new SendDiscoveryThread(ip, PORT, searchMessage);
-							threads.Add(thread);
-							thread.Start();
+							newThread = new Thread((/* params here */) => {
+								// Some code here which will run in another thread
+							});
+							threads.Add(newThread);
+							newThread.Start();
 						}
 
 						/* wait for all search threads to finish */
-						foreach (SendDiscoveryThread thread in threads) {
+						foreach (Thread thread in threads) {
 							try {
 								thread.Join();
 							}
