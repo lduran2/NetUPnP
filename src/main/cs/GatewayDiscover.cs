@@ -1,9 +1,11 @@
 using System; /* String */
 using System.Net; /* IPAddress */
 using System.Net.NetworkInformation; /* NetworkInterface */
-using System.Collections.Generic; /* IDictionary, ICollection */
+using System.Net.Sockets; /* UdpClient, UdpReceiveResult */
 using System.Threading; /* ThreadAbortException */
-// using Windows.Networking.Sockets; /* DatagramSocket */
+using System.Threading.Tasks; /* Task */
+using System.Collections.Generic; /* IDictionary, ICollection */
+using System.Text; /* Encoding */
 
 namespace org {
 	namespace dark_archives {
@@ -12,8 +14,8 @@ namespace org {
 			 * A gateway discover that searches for the 3 default
 			 * types.
 			 */
-			public class DefaultGatewayDiscover : GatewayDiscover {
-				private static readonly string[] DEFAULT_SEARCH_TYPES = new string[] {
+			public sealed class DefaultGatewayDiscover : GatewayDiscover {
+				private static readonly IEnumerable<string> DEFAULT_SEARCH_TYPES = new string[] {
 					"urn:schemas-upnp-org:device:InternetGatewayDevice:1",
 					"urn:schemas-upnp-org:service:WANIPConnection:1",
 					"urn:schemas-upnp-org:service:WANPPPConnection:1"
@@ -34,17 +36,11 @@ namespace org {
 				/** The SSDP port */
 				private const int PORT = 1900;
 
-				/** Default timeout */
-				private const uint DEFAULT_TIMEOUT = 3000;
-
 				/** 
 				 * The gateway types for which the discover will
 				 * search
 				 */
-				private string[] searchTypes;
-
-				// /** Timeout for the broadcase request. */
-				// private uint timeout;
+				private readonly IEnumerable<string> searchTypes;
 
 				/**
 				 * GatewayDevices discovered so far.
@@ -56,22 +52,21 @@ namespace org {
 				 * Constructor.
 				 * @param types for which the discover will search
 				 */
-				public GatewayDiscover(params string[] types) {
+				public GatewayDiscover(IEnumerable<string> types) {
 					this.searchTypes = types;
-					// this.timeout = DEFAULT_TIMEOUT;
 					this.devices = new Dictionary<IPAddress, GatewayDevice>();
-				} /* end GatewayDiscovery(params string[]) */
+				} /* end GatewayDiscovery(IEnumerable<string>) */
 
 				public IDictionary<IPAddress, GatewayDevice> Discover() {
 					ICollection<IPAddress> ips;
-					uint k;
+					IEnumerator<string> iType;
 					string searchMessage;
 
 					ips = getLocalIpAddresses(true, false, false);
 
 					/* look through the search types until a device is
 					   found, or no more search types */
-					for (k = 0; ((0 == devices.Count) && (searchTypes.Length > k)); ++k) {
+					for (iType = searchTypes.GetEnumerator(); ((0 == devices.Count) && iType.MoveNext()); ) {
 						searchMessage = String.Format(
 							"M-SEARCH * HTTP/1.1\r\n"
 							+ "HOST: {0}:{1}\r\n"
@@ -79,13 +74,20 @@ namespace org {
 							+ "MAN: \"{3}\"\r\n"
 							+ "MX: {4}\r\n" /* response delay in seconds */
 							+ "\r\n",
-							IP, PORT, searchTypes[k], "ssdp:discover", 2
+							IP, PORT, iType.Current, "ssdp:discover", 2
 						);
 
 						/* perform search requests for multiple network adapters concurrently */
 						ICollection<SendDiscoveryThread> threads = new LinkedList<SendDiscoveryThread>();
 						foreach (IPAddress ip in ips) {
-							SendDiscoveryThread thread = new SendDiscoveryThread(ip, searchMessage);
+							/*
+								Thread newThread = new Thread((/ * params here * /) => {
+									// Some code here which will run in another thread
+								});
+								threads.Add(newThread);
+								newThread.Start();
+							*/
+							SendDiscoveryThread thread = new SendDiscoveryThread(ip, PORT, searchMessage);
 							threads.Add(thread);
 							thread.Start();
 						}
@@ -95,7 +97,7 @@ namespace org {
 							try {
 								thread.Join();
 							}
-							catch (ThreadAbortException taex) {
+							catch (ThreadAbortException tae) {
 								/* if interrupted, continue with the
 								   next thread */
 							}
@@ -115,7 +117,7 @@ namespace org {
 					try {
 						networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
 					}
-					catch (NetworkInformationException niex) {
+					catch (NetworkInformationException nie) {
 						areNoIpAddresses = true;
 					}
 
@@ -137,31 +139,6 @@ namespace org {
 					return null;
 				}
 
-				private class SendDiscoveryThread {
-					IPAddress ip;
-					string searchMessage;
-
-					public SendDiscoveryThread(IPAddress localIp, string initSearchMessage) {
-						this.ip = localIp;
-						this.searchMessage = initSearchMessage;
-					}
-
-					public void Start() {}
-					public void Join() {}
-
-					public void Run() {
-						// IDatagramSocket ssdp = null;
-
-						try {
-							/* Create socket bound to specified local address */
-							// ssdp = new DatagramSocket();
-							//ssdp.BindEndpointAsync(new HostName(String.Format("{0}:{1}", ip, 0)), );
-						}
-						catch (ThreadAbortException taex) {
-							
-						}
-					}
-				}
 			} /* end class GatewayDiscover */
 		} /* end namespace org.dark_archives.NetUPnP */
 	} /* end namespace org.dark_archives */
