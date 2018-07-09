@@ -3,7 +3,7 @@ using System.Net; /* IPAddress */
 namespace org {
 	namespace dark_archives {
 		namespace NetUPnP {
-			public class GatewayDevice {
+			public sealed class GatewayDevice {
 				// GateDiscover
 				public object getFriendlyName() { return null; }
 				public object getPresentationURL() { return null; }
