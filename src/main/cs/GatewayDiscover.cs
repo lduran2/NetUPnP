@@ -129,9 +129,9 @@ namespace org {
 					foreach (NetworkInterface card in networkInterfaces) {
 						bool isSuitableToSearchGateways = true;
 						try {
-							if ((card.NetworkInterfaceType == NetworkInterfaceType.Loopback) || (card.NetworkInterfaceType == NetworkInterfaceType.Ppp) || (!NetworkInterface.GetIsNetworkAvailable())) {
-								isSuitableToSearchGateways = false;
-							}
+							isSuitableToSearchGateways &= (card.NetworkInterfaceType != NetworkInterfaceType.Loopback);
+							isSuitableToSearchGateways &= (card.NetworkInterfaceType != NetworkInterfaceType.Ppp);
+							isSuitableToSearchGateways &= NetworkInterface.GetIsNetworkAvailable();
 						}
 						catch (Exception ex) {
 							isSuitableToSearchGateways = false;
