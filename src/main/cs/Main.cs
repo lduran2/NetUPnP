@@ -28,7 +28,7 @@ public static class MainClass {
 		                         ((gateways.Count > 0) ? "s" : "")));
 
 		devices = gateways.Values.GetEnumerator();
-		for (k = 0; (gateways.Count > k); ++k) {
+		for (k = 1; (gateways.Count >= k); ++k) {
 			devices.MoveNext();
 			dev = devices.Current;
 			addLogLine(String.Format("Listing gateway details of device "
