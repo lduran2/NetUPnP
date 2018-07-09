@@ -125,12 +125,19 @@ namespace org {
 
 					/* For every suitable network interface,
 					   get all IP addresses */
+					
 					foreach (NetworkInterface card in networkInterfaces) {
+						bool isSuitableToSearchGateways = true;
 						try {
-							
+							if ((card.NetworkInterfaceType == NetworkInterfaceType.Loopback) || (card.NetworkInterfaceType == NetworkInterfaceType.Ppp) || (!NetworkInterface.GetIsNetworkAvailable())) {
+								isSuitableToSearchGateways = false;
+							}
 						}
 						catch (Exception ex) {
-							
+							isSuitableToSearchGateways = false;
+						}
+						if (!isSuitableToSearchGateways) {
+							continue;
 						}
 					}
 					return null;
