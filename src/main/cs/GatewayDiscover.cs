@@ -109,6 +109,22 @@ namespace org {
 					return devices;
 				}
 
+				public GatewayDevice ValidGateway(GatewayDevice defaultDevice) {
+					for (GatewayDevice device : devices.Values) {
+						try {
+							if (device.isConnected()) {
+								return device;
+							}
+						}
+						catch (Exception ex) {
+							/* noop */
+						}
+					}
+
+					/* if none found, return the default device */
+					return defaultDevice;
+				}
+
 				private enum IpAddressListType { asIs, onlyIp4, onlyIp6, ip4BeforeIp6 };
 
 				private IEnumerator<IPAddress> getLocalIpAddresses(IpAddressListType listType) {
