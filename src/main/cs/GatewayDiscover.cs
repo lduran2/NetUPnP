@@ -4,6 +4,7 @@ using System.Net.NetworkInformation; /* NetworkInterface */
 using System.Net.Sockets; /* UdpClient, UdpReceiveResult */
 using System.Threading; /* ThreadAbortException */
 using System.Threading.Tasks; /* Task */
+using System.Linq; /* Enumerable */
 using System.Collections.Generic; /* IDictionary, ICollection */
 using System.Text; /* Encoding */
 
@@ -58,13 +59,13 @@ namespace org {
 				} /* end GatewayDiscovery(IEnumerable<string>) */
 
 				public IDictionary<IPAddress, GatewayDevice> Discover() {
-					ICollection<IPAddress> ips;
+					IEnumerator<IPAddress> ips;
 					IEnumerator<string> iType;
 					string searchMessage;
 					ICollection<Thread> threads;
 					Thread newThread;
 
-					ips = getLocalIpAddresses(true, false, false);
+					ips = getLocalIpAddresses(IpAddressListType.onlyIp4);
 
 					/* look through the search types until a device is
 					   found, or no more search types */
@@ -81,7 +82,7 @@ namespace org {
 
 						/* perform search requests for multiple network adapters concurrently */
 						threads = new LinkedList<Thread>();
-						foreach (IPAddress ip in ips) {
+						for (; ips.MoveNext(); ) {
 							newThread = new Thread((/* params here */) => {
 								// Some code here which will run in another thread
 							});
@@ -95,8 +96,12 @@ namespace org {
 								thread.Join();
 							}
 							catch (ThreadAbortException tae) {
-								/* if interrupted, continue with the
-								   next thread */
+								/* noop: if interrupted, continue with
+								   the next thread */
+							}
+
+							if (0 < devices.Count) {
+								break;
 							}
 						}
 
@@ -104,43 +109,72 @@ namespace org {
 					return devices;
 				}
 
-				private LinkedList<IPAddress> getLocalIpAddresses(bool getIp4, bool getIp6, bool shouldIp4BeforeIp6) {
-					LinkedList<IPAddress> ipAddresses = new LinkedList<IPAddress>();
-					int iLastIp4Address = 0;
-					bool areNoIpAddresses = false;
+				private enum IpAddressListType { asIs, onlyIp4, onlyIp6, ip4BeforeIp6 };
 
-					/* get all network interfaces */
-					NetworkInterface[] networkInterfaces = null;
+				private IEnumerator<IPAddress> getLocalIpAddresses(IpAddressListType listType) {
+					List<IPAddress> ipAddresses;
+					IEnumerator<IPAddress> iAddresses;
+					IPAddressCollection addresses;
+					IPAddress ipAddress;
+					int index;
+					int iLastIp4 = 0;
+					NetworkInterface[] networkInterfaces;
+					bool isSuitableToSearchGateways = true;
+
+					/* figure out insert in linked list, preferably */
+					ipAddresses = new List<IPAddress>();
+
+					networkInterfaces = null;
 					try {
 						networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-					}
-					catch (NetworkInformationException nie) {
-						areNoIpAddresses = true;
+					} catch (NetworkInformationException nie) {}
+
+					if (networkInterfaces == null) {
+						return Enumerable.Empty<IPAddress>().GetEnumerator();
 					}
 
-					areNoIpAddresses |= (networkInterfaces == null);
-					if (areNoIpAddresses) {
-						return ipAddresses;
-					}
-
-					/* For every suitable network interface,
-					   get all IP addresses */
-					
 					foreach (NetworkInterface card in networkInterfaces) {
-						bool isSuitableToSearchGateways = true;
 						try {
 							isSuitableToSearchGateways &= (card.NetworkInterfaceType != NetworkInterfaceType.Loopback);
 							isSuitableToSearchGateways &= (card.NetworkInterfaceType != NetworkInterfaceType.Ppp);
-							isSuitableToSearchGateways &= NetworkInterface.GetIsNetworkAvailable();
-						}
-						catch (Exception ex) {
+							isSuitableToSearchGateways &= !NetworkInterface.GetIsNetworkAvailable();
+						} catch (SocketException se) {
 							isSuitableToSearchGateways = false;
 						}
+
 						if (!isSuitableToSearchGateways) {
 							continue;
 						}
+
+						addresses = card.GetIPProperties().WinsServersAddresses;
+						iAddresses = addresses.GetEnumerator();
+
+						for (; iAddresses.MoveNext(); ) {
+							ipAddress = iAddresses.Current;
+							index = ipAddresses.Count;
+
+							switch (listType) {
+								case IpAddressListType.onlyIp4:
+									if (ipAddress.AddressFamily != AddressFamily.InterNetwork) {
+										continue;
+									}
+									break;
+								case IpAddressListType.onlyIp6:
+									if (ipAddress.AddressFamily != AddressFamily.InterNetworkV6) {
+										continue;
+									}
+									break;
+								case IpAddressListType.ip4BeforeIp6:
+									if (ipAddress.AddressFamily != AddressFamily.InterNetwork) {
+										index = iLastIp4++;
+									}
+									break;
+							}
+							ipAddresses.Insert(index, ipAddress);
+						}
 					}
-					return null;
+
+					return ipAddresses.GetEnumerator();
 				}
 
 			} /* end class GatewayDiscover */
